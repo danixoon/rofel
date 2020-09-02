@@ -95,22 +95,24 @@ client.on("message", async (msg) => {
 
       const answer = await axios.post("http://p-bot.ru/api/getAnswer", body, {
         headers: {
-          accept: "*/*",
-          "accept-language": "ru",
-          "content-type": "application/x-www-form-urlencoded",
+          // accept: "*/*",
+          // "accept-language": "ru",
+          // "content-type": "application/x-www-form-urlencoded",
 
-          referrer: "http://p-bot.ru/",
-          referrerPolicy: "no-referrer-when-downgrade",
+          // referrer: "http://p-bot.ru/",
+          // referrerPolicy: "no-referrer-when-downgrade",
 
           method: "POST",
-          mode: "cors",
-          credentials: "include",
+          // mode: "cors",
+          // credentials: "include",
         },
       });
 
       msg.reply(answer.data.answer);
+
       dialog.push([msg.content, answer.data.answer]);
-      dialogs.set(msg.author.id, dialog);
+      let slicedDialog = dialog.slice(-4);
+      dialogs.set(msg.author.id, slicedDialog);
       break;
     }
   }
