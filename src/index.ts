@@ -89,26 +89,24 @@ client.on("message", async (msg) => {
         .map(([req, ans], i) => `request_${i}=${req}&answer_${i}=${ans}`)
         .join("&");
 
-      const answer = await axios.post(
-        "http://p-bot.ru/api/getAnswer",
-        `request=${msg.content}&bot_name=кит&user_name=${
-          msg.member.displayName
-        }${dialogRequest ? `&${dialogRequest}&` : ""}${process.env.TALK_URL}`,
-        {
-          headers: {
-            accept: "*/*",
-            "accept-language": "ru",
-            "content-type": "application/x-www-form-urlencoded",
+      const body = `request=${msg.content}&bot_name=кит&user_name=${
+        msg.member.displayName
+      }${dialogRequest ? `&${dialogRequest}` : ""}&${process.env.TALK_URL}`;
 
-            referrer: "http://p-bot.ru/",
-            referrerPolicy: "no-referrer-when-downgrade",
+      const answer = await axios.post("http://p-bot.ru/api/getAnswer", body, {
+        headers: {
+          accept: "*/*",
+          "accept-language": "ru",
+          "content-type": "application/x-www-form-urlencoded",
 
-            method: "POST",
-            mode: "cors",
-            credentials: "include",
-          },
-        }
-      );
+          referrer: "http://p-bot.ru/",
+          referrerPolicy: "no-referrer-when-downgrade",
+
+          method: "POST",
+          mode: "cors",
+          credentials: "include",
+        },
+      });
 
       msg.reply(answer.data.answer);
       dialog.push([msg.content, answer.data.answer]);
