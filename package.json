@@ -1,0 +1,36 @@
+{
+  "name": "rofel-d",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node --inspect=5858 -r ts-node/register ./src/index.ts",
+    "watch": "nodemon"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      ".git",
+      "node_modules"
+    ],
+    "watch": [
+      "src"
+    ],
+    "exec": "yarn start",
+    "ext": "ts"
+  },
+  "dependencies": {
+    "@discordjs/opus": "^0.3.2",
+    "@types/node": "^12.7.1",
+    "axios": "^0.20.0",
+    "discord.js": "^12.3.1",
+    "dotenv": "^8.0.0",
+    "ffmpeg-static": "^2.5.0",
+    "random-reddit": "^1.1.0",
+    "ts-node": "^8.3.0",
+    "typescript": "^3.5.3",
+    "util": "^0.12.1",
+    "ytdl-core": "^3.2.2"
+  }
+}
