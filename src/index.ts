@@ -46,7 +46,12 @@ client.on("message", async (msg) => {
     case "хочу": {
       const channel = msg.member.voice.channel;
       if (channel) {
-        const url = commands[1];
+        const url = commands[1].startsWith("http")
+          ? commands[1]
+          : commands[1] === "вайб"
+          ? "https://www.youtube.com/watch?v=5qap5aO4i9A"
+          : null;
+
         if (url) {
           const activeBroadcast = connections.get(channel.id);
 
@@ -76,7 +81,8 @@ client.on("message", async (msg) => {
               activeBroadcast.stream
             );
           }
-        }
+          msg.reply("держи");
+        } else msg.reply("че хочешь?");
       }
       break;
     }
