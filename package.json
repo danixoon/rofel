@@ -4,7 +4,9 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "node --inspect=5858 -r ts-node/register ./src/index.ts",
+    "debug": "node --inspect=5858 -r ts-node/register ./src/index.ts",
+    "start": "node ./dist/index.js",
+    "build": "tsc",
     "watch": "nodemon"
   },
   "nodemonConfig": {
