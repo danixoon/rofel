@@ -2,6 +2,7 @@ import * as Discord from "discord.js";
 import * as yargs from "yargs";
 import * as ytdl from "ytdl-core";
 import * as api from "./api";
+import { Readable } from "stream";
 
 type CommandValidator<T, C> = (command: { context: C; command: T }) => boolean;
 type CommandHandler<T, C> = (command: { context: C; command: T }) => any;
@@ -109,6 +110,32 @@ export const getCommandor = () => {
     const image = await api.reddit.getImage("hmmm");
     context.reply("на", { files: [image] });
   });
+
+  commandor
+    .command("скажи")
+    .check(({ context }) => {
+      if (!context.member.voice.channel) {
+        context.reply("в канал войди а");
+        return true;
+      }
+    })
+    .handler(async ({ context }) => {
+      const connection = await context.member.voice.channel.join();
+      const [response] = await api.speech.synthesizeSpeech({
+        input: { text: context.content.split(/\s+/gm).slice(1).join(" ") },
+        voice: { languageCode: "ru-RU", ssmlGender: "NEUTRAL" },
+        audioConfig: { audioEncoding: "OGG_OPUS" },
+      });
+
+      const audioStream = new Readable({
+        read() {
+          this.push(response.audioContent);
+          this.push(null);
+        },
+      });
+
+      connection.play(audioStream, { type: "ogg/opus" });
+    });
 
   return commandor;
 };
