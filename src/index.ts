@@ -3,10 +3,22 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-import { getCommandor } from "./commands";
+import { combineCommandors } from "./commands";
+import musicCommand from "./commands/music";
+import redditCommand from "./commands/reddit";
+import sayCommand from "./commands/say";
+import talkCommand from "./commands/talk";
+import rogueCommand from "./commands/rogue";
+
+const commandor = combineCommandors(
+  musicCommand,
+  redditCommand,
+  sayCommand,
+  talkCommand,
+  rogueCommand
+);
 
 const client = new Discord.Client();
-const commandor = getCommandor();
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
