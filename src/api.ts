@@ -66,5 +66,5 @@ export const getAnswer = async (
   }&dialog_lang=ru&${secret}`;
 
   const answer = await axios.post("http://p-bot.ru/api/getAnswer", body);
-  return answer.data.answer;
+  return answer.data.answer as string;
 };
