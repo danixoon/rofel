@@ -2,22 +2,72 @@ import * as Discord from "discord.js";
 import * as api from "../api";
 import { Commandor } from "./";
 import { dir } from "console";
+import { EventEmitter } from "events";
 
 class Game {
+  private client: Discord.Client;
   private message: Discord.Message;
+  private channel: Discord.TextChannel;
   private id: number;
   private size: number;
+  private field: string[] = [];
 
-  public field: string[] = [];
+  private handleReaction = async (
+    reaction: Discord.MessageReaction,
+    user: Discord.User
+  ) => {
+    if (this.message.id !== reaction.message.id) return;
+    if (user.bot) return;
 
-  constructor(size: number) {
-    const fieldArray = new Array(size * size).fill(":full_moon:");
-    this.id = Math.floor(Math.random() * fieldArray.length);
-    fieldArray[this.id] = ":new_moon_with_face:";
+    reaction.users.remove(user);
+    switch (reaction.emoji.name) {
+      case "➡️":
+        this.move("right");
+        break;
+      case "⬅️":
+        this.move("left");
+        break;
+      case "⬆️":
+        this.move("up");
+        break;
+      case "⬇️":
+        this.move("down");
+        break;
+    }
 
-    this.field = fieldArray;
+    this.message = await reaction.message.edit(this.getField().join("\n"));
+  };
+
+  public async start(
+    client: Discord.Client,
+    channel: Discord.TextChannel,
+    size: number
+  ) {
+    this.client = client;
+    this.channel = channel;
     this.size = size;
+
+    const field = new Array(size * size).fill(":full_moon:");
+    const id = Math.floor(Math.random() * field.length);
+    field[id] = ":new_moon_with_face:";
+
+    this.id = id;
+    this.field = field;
+    this.client.on("messageReactionAdd", this.handleReaction);
+
+    this.message = await this.channel.send({
+      content: this.getField().join("\n"),
+    });
+
+    await Promise.all(
+      ["⬅️", "⬇️", "⬆️", "➡️"].map((v) => this.message.react(v))
+    );
   }
+
+  public stop() {
+    this.client.off("messageReactionAdd", this.handleReaction);
+  }
+
   public setMessage(message: Discord.Message) {
     this.message = message;
   }
@@ -47,7 +97,8 @@ class Game {
     this.id = x + y * this.size;
     this.field[this.id] = ":new_moon_with_face:";
   }
-  public getField(): string[] {
+
+  private getField(): string[] {
     const createField = (arr: string[], size: number): string[] => {
       if (arr.length < size) return [arr.join("")];
       return [
@@ -79,56 +130,22 @@ commandor
     command.action = action;
   })
   .handler(async ({ context, command }) => {
-    const gameChannelID = context.channel.id;
-    const handleReaction = async (
-      reaction: Discord.MessageReaction,
-      user: Discord.User
-    ) => {
-      if (gameChannelID !== reaction.message.channel.id) return;
-      if (user.bot) return;
-
-      const game = games.get(gameChannelID);
-      reaction.users.remove(user);
-      switch (reaction.emoji.name) {
-        case "➡️":
-          game.move("right");
-          break;
-        case "⬅️":
-          game.move("left");
-          break;
-        case "⬆️":
-          game.move("up");
-          break;
-        case "⬇️":
-          game.move("down");
-          break;
-      }
-
-      const message = await reaction.message.edit(game.getField().join("\n"));
-      game.setMessage(message);
-    };
+    const channel = context.channel as Discord.TextChannel;
+    let game = games.get(channel.id);
 
     switch (command.action) {
       case "stop":
-        games.delete(gameChannelID);
-        context.client.off("messageReactionAdd", handleReaction);
+        game.stop();
+        games.delete(channel.id);
+
         context.reply("игры больше нет.");
         break;
       case "start":
-        const game = new Game(5);
+        game = new Game();
+        game.start(context.client, channel, 5);
+        games.set(channel.id, game);
 
         context.reply("игра началась.");
-        const message = await context.channel.send({
-          content: game.getField().join("\n"),
-        });
-        await Promise.all(
-          ["⬇️", "⬆️", "⬅️", "➡️"].map((v) => message.react(v))
-        );
-
-        game.setMessage(message);
-        games.set(gameChannelID, game);
-
-        context.client.on("messageReactionAdd", handleReaction);
         break;
     }
   });
