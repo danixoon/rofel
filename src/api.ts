@@ -1,6 +1,10 @@
 import axios from "axios";
+import * as WebSocket from "ws";
 import { RandomReddit } from "random-reddit";
 import * as TTS from "@google-cloud/text-to-speech";
+import { EventEmitter } from "events";
+import { createClient } from "graphql-ws";
+import { v4 as uuid } from "uuid";
 
 export const speech = new TTS.TextToSpeechClient();
 export const reddit = new RandomReddit({
@@ -16,6 +20,7 @@ export const getAnswer = async (
   displayName: string,
   authorID: string
 ) => {
+  // TODO: Поправить dialogs - он нигде не изменяется
   const dialog = dialogs.get(authorID) || [];
   const dialogRequest = dialog
     .map(([req, ans], i) => `request_${i}=${req}&answer_${i}=${ans}`)
@@ -65,6 +70,62 @@ export const getAnswer = async (
     dialogRequest ? `&${dialogRequest}` : ""
   }&dialog_lang=ru&${secret}`;
 
-  const answer = await axios.post("http://p-bot.ru/api/getAnswer", body);
-  return answer.data.answer as string;
+  const {
+    data: { answer },
+  } = await axios.post("http://p-bot.ru/api/getAnswer", body);
+  return answer as string;
 };
+const pongChatDialogId = process.env.PONG_CHAT_DIALOG_ID;
+class PongChatClient extends EventEmitter {
+  client = createClient({
+    url: "ws://localhost:5000/graphql",
+    webSocketImpl: WebSocket,
+    generateID: () => uuid(),
+    connectionParams: {
+      token: process.env.PONG_CHAT_TOKEN,
+    },
+  });
+  isChatting: boolean = false;
+  constructor() {
+    super();
+    type Payload = {
+      data: Record<
+        "dialogMessage" | "dialogOpened" | "dialogClosed",
+        { payload: any }
+      >;
+    };
+    const subscribeToDialogEvent = (event: string) => {
+      this.client.subscribe<Payload>(
+        {
+          query: `subscription { ${event}(dialogId: "${pongChatDialogId}") { payload } }`,
+        },
+        {
+          next: (response) => {
+            for (const key in response.data) {
+              this.emit(key, response.data[key].payload);
+            }
+          },
+          error: (e: any) => {
+            console.error(e);
+            throw new Error(e);
+          },
+          complete: () => {},
+        }
+      );
+    };
+    subscribeToDialogEvent("dialogOpened");
+    subscribeToDialogEvent("dialogMessage");
+    subscribeToDialogEvent("dialogClosed");
+  }
+  searchDialogs = async () => {
+    await axios.post("http://localhost:5000/graphql", {
+      query: `mutation { searchDialogs(dialogId: "${pongChatDialogId}") }`,
+    });
+  };
+  closeDialogs = async () => {
+    await axios.post("http://localhost:5000/graphql", {
+      query: `mutation { closeDialogs(dialogId: "${pongChatDialogId}") }`,
+    });
+  };
+}
+export const pongChatClient = new PongChatClient();

@@ -9,13 +9,15 @@ import redditCommand from "./commands/reddit";
 import sayCommand from "./commands/say";
 import talkCommand from "./commands/talk";
 import rogueCommand from "./commands/rogue";
+import pongChatCommand from "./commands/pongChat";
 
 const commandor = combineCommandors(
   musicCommand,
   redditCommand,
   sayCommand,
   talkCommand,
-  rogueCommand
+  rogueCommand,
+  pongChatCommand
 );
 
 const client = new Discord.Client();
