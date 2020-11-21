@@ -1,47 +1,78 @@
-import { Readable } from "stream";
 import * as api from "../api";
 import { Commandor } from ".";
 import * as Discord from "discord.js";
 
-const activeChats = new Map<
-  string,
-  { [key: string]: (...args: any[]) => void }
->();
+const activeChats = new Map<string, PongChat>();
+
+class PongChat {
+  channel: Discord.TextChannel;
+  listeners: { [key: string]: (...args: any[]) => void };
+  botIds: string[] = [];
+  constructor(channel: Discord.TextChannel) {
+    this.channel = channel;
+    this.listeners = {
+      dialogMessage: this.handleOnMessage,
+      dialogOpened: this.handleOnDialog,
+      dialogClosed: this.handleOnClose,
+    };
+    for (const event in this.listeners) {
+      api.pongChatClient.on(event, this.listeners[event]);
+    }
+  }
+
+  private handleOnMessage = (msg: any) => {
+    const name = msg.botId === this.botIds[0] ? "Пупа" : "Лупа";
+    this.channel.send(
+      `\`${msg.userId ? `((${name}))` : name}\` ${msg.message}`
+    );
+  };
+  private handleOnDialog = (dialog: any) => {
+    this.botIds.push(dialog.botId);
+    this.channel.send(`\`кабанчик найден..\``);
+  };
+  private handleOnClose = () => {
+    this.botIds = [];
+    this.channel.send(`\`кабанчик сдох..\``);
+  };
+
+  public searchDialog = async () => {
+    await api.pongChatClient.searchDialogs();
+  };
+
+  public closeDialog = async () => {
+    await api.pongChatClient.closeDialogs();
+  };
+
+  public sendUserMessage = async (botName: string, message: string) => {
+    const botId = botName === "пупа" ? this.botIds[0] : this.botIds[1];
+    await api.pongChatClient.sendUserMessage(botId, message);
+  };
+
+  public dispose = () => {
+    for (const event in this.listeners) {
+      api.pongChatClient.off(event, this.listeners[event]);
+    }
+  };
+}
 
 const stopChat = async (channelId: string) => {
-  const listeners = activeChats.get(channelId) ?? [];
-  await api.pongChatClient.closeDialogs();
-  for (const event in listeners) {
-    api.pongChatClient.off(event, listeners[event]);
+  const activeChat = activeChats.get(channelId);
+  if (activeChat) {
+    await activeChat.closeDialog();
+    activeChat.dispose();
+    activeChats.delete(channelId);
   }
-  activeChats.delete(channelId);
 };
 
 const startChat = async (channel: Discord.TextChannel) => {
-  if (activeChats.has(channel.id)) {
-    await api.pongChatClient.closeDialogs();
-    await api.pongChatClient.searchDialogs();
-    return;
+  let activeChat = activeChats.get(channel.id);
+  if (activeChat) {
+    await activeChat.closeDialog();
+    return activeChat.searchDialog();
   }
-  const handleOnMessage = (msg: any) => {
-    channel.send(`\`${msg.senderId}\` ${msg.message}`);
-  };
-  const handleOnDialog = () => {
-    channel.send(`\`кабанчик найден..\``);
-  };
-  const handleOnClose = () => {
-    channel.send(`\`кабанчик сдох..\``);
-  };
-  const listeners = {
-    dialogMessage: handleOnMessage,
-    dialogOpened: handleOnDialog,
-    dialogClosed: handleOnClose,
-  };
-  for (const event in listeners) {
-    api.pongChatClient.on(event, listeners[event]);
-  }
-  await api.pongChatClient.searchDialogs();
-  activeChats.set(channel.id, listeners);
+  activeChat = new PongChat(channel);
+  activeChats.set(channel.id, activeChat);
+  return activeChat.searchDialog();
 };
 
 const commandor = new Commandor();
@@ -52,12 +83,15 @@ commandor
       context.reply(`кабанчиков либо сюда либо отсюда`);
       return true;
     }
+    if (action === "отсюда" && !activeChats.has(context.channel.id)) {
+      context.reply("кабанчики уже мертвы.");
+      return true;
+    }
   })
   .handler(async ({ command: { action }, context }) => {
     switch (action) {
       case "сюда": {
         const isRestart = activeChats.has(context.channel.id);
-        await stopChat(context.channel.id);
         await startChat(context.channel as Discord.TextChannel);
         context.reply(
           isRestart ? "кабанчики перенашлись." : "кабанчики запущены."
@@ -70,5 +104,31 @@ commandor
         break;
       }
     }
+  });
+
+commandor
+  .command<{ botName: string }>("ответь [botName]")
+  .check(({ command: { botName }, context }) => {
+    const words = context.content.split(/\s+/);
+    if (!["пупа", "лупа"].includes(botName.toLowerCase())) {
+      context.reply("я отвечаю либо за пупу, либо за лупу.");
+      return true;
+    }
+    if (words.length < 3) {
+      context.reply("а че ответить то?");
+      return true;
+    }
+    if (!activeChats.has(context.channel.id)) {
+      context.reply("если кабанчиков запустишь - отвечу.");
+      return true;
+    }
+  })
+  .handler(async ({ command, context }) => {
+    const chat = activeChats.get(context.channel.id);
+    await chat.sendUserMessage(
+      command.botName.toLowerCase(),
+      context.content.split(/\s+/).slice(2).join(" ")
+    );
+    // const botId =
   });
 export default commandor;

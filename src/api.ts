@@ -106,8 +106,7 @@ class PongChatClient extends EventEmitter {
             }
           },
           error: (e: any) => {
-            console.error(e);
-            throw new Error(e);
+            console.error("PongChat subscription error: ", e);
           },
           complete: () => {},
         }
@@ -118,14 +117,43 @@ class PongChatClient extends EventEmitter {
     subscribeToDialogEvent("dialogClosed");
   }
   searchDialogs = async () => {
-    await axios.post("http://localhost:5000/graphql", {
-      query: `mutation { searchDialogs(dialogId: "${pongChatDialogId}") }`,
-    });
+    await axios.post(
+      "http://localhost:5000/graphql",
+      {
+        query: `mutation { searchDialogs(dialogId: "${pongChatDialogId}") }`,
+      },
+      {
+        headers: {
+          Authorization: process.env.PONG_CHAT_TOKEN,
+        },
+      }
+    );
   };
   closeDialogs = async () => {
-    await axios.post("http://localhost:5000/graphql", {
-      query: `mutation { closeDialogs(dialogId: "${pongChatDialogId}") }`,
-    });
+    await axios.post(
+      "http://localhost:5000/graphql",
+      {
+        query: `mutation { closeDialogs(dialogId: "${pongChatDialogId}") }`,
+      },
+      {
+        headers: {
+          Authorization: process.env.PONG_CHAT_TOKEN,
+        },
+      }
+    );
+  };
+  sendUserMessage = async (botId: string, message: string) => {
+    await axios.post(
+      "http://localhost:5000/graphql",
+      {
+        query: `mutation { sendUserMessage(dialogId: "${pongChatDialogId}", botId: "${botId}", message: "${message}") }`,
+      },
+      {
+        headers: {
+          Authorization: process.env.PONG_CHAT_TOKEN,
+        },
+      }
+    );
   };
 }
 export const pongChatClient = new PongChatClient();
